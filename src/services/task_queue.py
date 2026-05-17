@@ -376,6 +376,7 @@ class AnalysisTaskQueue:
                     continue
 
                 task_id = uuid.uuid4().hex
+                task_skills = list(skills) if skills is not None else None
                 task_info = TaskInfo(
                     task_id=task_id,
                     stock_code=stock_code,
@@ -385,7 +386,7 @@ class AnalysisTaskQueue:
                     report_type=report_type,
                     original_query=original_query,
                     selection_source=selection_source,
-                    skills=list(skills) if skills is not None else None,
+                    skills=task_skills,
                 )
                 self._tasks[task_id] = task_info
                 self._analyzing_stocks[dedupe_key] = task_id
@@ -398,7 +399,7 @@ class AnalysisTaskQueue:
                         report_type,
                         force_refresh,
                         notify,
-                        skills,
+                        task_skills,
                     )
                 except Exception:
                     # Roll back the current batch to avoid partial submission.

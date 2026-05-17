@@ -37,6 +37,9 @@ const HomePage: React.FC = () => {
   const marketReviewPollTimer = useRef<number | null>(null);
   const dashboardScrollRef = useRef<HTMLElement | null>(null);
   const strategyMenuRef = useRef<HTMLDivElement | null>(null);
+  const strategyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const strategyItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const strategyInitialFocusIndexRef = useRef<number | null>(null);
 
   const stopMarketReviewPolling = useCallback(() => {
     if (marketReviewPollTimer.current !== null) {
@@ -175,6 +178,101 @@ const HomePage: React.FC = () => {
     () => (selectedStrategyId ? [selectedStrategyId] : undefined),
     [selectedStrategyId],
   );
+  const strategyOptions = useMemo(
+    () => [
+      { id: '', name: '默认策略', description: '沿用系统默认分析框架' },
+      ...analysisSkills.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+      })),
+    ],
+    [analysisSkills],
+  );
+  const closeStrategyMenu = useCallback((restoreFocus = false) => {
+    setStrategyMenuOpen(false);
+    if (restoreFocus) {
+      strategyButtonRef.current?.focus();
+    }
+  }, []);
+  const selectStrategy = useCallback((strategyId: string) => {
+    setSelectedStrategyId(strategyId);
+    setStrategyMenuOpen(false);
+  }, []);
+  const focusStrategyItem = useCallback((index: number) => {
+    const itemCount = strategyOptions.length;
+    if (itemCount === 0) {
+      return;
+    }
+    const nextIndex = (index + itemCount) % itemCount;
+    strategyItemRefs.current[nextIndex]?.focus();
+  }, [strategyOptions.length]);
+  const getSelectedStrategyIndex = useCallback(() => {
+    const selectedIndex = strategyOptions.findIndex((option) => option.id === selectedStrategyId);
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  }, [selectedStrategyId, strategyOptions]);
+  useEffect(() => {
+    strategyItemRefs.current = strategyItemRefs.current.slice(0, strategyOptions.length);
+  }, [strategyOptions.length]);
+  useEffect(() => {
+    if (!strategyMenuOpen) {
+      return undefined;
+    }
+
+    const targetIndex = strategyInitialFocusIndexRef.current ?? getSelectedStrategyIndex();
+    strategyInitialFocusIndexRef.current = null;
+    const timeout = window.setTimeout(() => focusStrategyItem(targetIndex), 0);
+    return () => window.clearTimeout(timeout);
+  }, [focusStrategyItem, getSelectedStrategyIndex, strategyMenuOpen]);
+  const handleStrategyButtonKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return;
+    }
+
+    event.preventDefault();
+    const targetIndex = event.key === 'ArrowUp' ? strategyOptions.length - 1 : 0;
+    if (strategyMenuOpen) {
+      focusStrategyItem(targetIndex);
+      return;
+    }
+    strategyInitialFocusIndexRef.current = targetIndex;
+    setStrategyMenuOpen(true);
+  }, [focusStrategyItem, strategyMenuOpen, strategyOptions.length]);
+  const handleStrategyMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const itemCount = strategyOptions.length;
+    if (itemCount === 0) {
+      return;
+    }
+
+    const currentIndex = strategyItemRefs.current.findIndex((item) => item === document.activeElement);
+    switch (event.key) {
+      case 'Escape':
+        event.preventDefault();
+        closeStrategyMenu(true);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        focusStrategyItem(currentIndex >= 0 ? currentIndex + 1 : 0);
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        focusStrategyItem(currentIndex >= 0 ? currentIndex - 1 : itemCount - 1);
+        break;
+      case 'Home':
+        event.preventDefault();
+        focusStrategyItem(0);
+        break;
+      case 'End':
+        event.preventDefault();
+        focusStrategyItem(itemCount - 1);
+        break;
+      case 'Tab':
+        setStrategyMenuOpen(false);
+        break;
+      default:
+        break;
+    }
+  }, [closeStrategyMenu, focusStrategyItem, strategyOptions.length]);
   const setupNeedsAction = setupStatus ? !setupStatus.isComplete : false;
   const setupMissingLabels = useMemo(() => {
     if (!setupStatus) {
@@ -472,10 +570,14 @@ const HomePage: React.FC = () => {
               {analysisSkills.length > 0 ? (
                 <div ref={strategyMenuRef} className="relative flex-shrink-0">
                   <button
+                    ref={strategyButtonRef}
+                    id="strategy-menu-button"
                     type="button"
                     aria-haspopup="menu"
                     aria-expanded={strategyMenuOpen}
+                    aria-controls={strategyMenuOpen ? 'strategy-menu' : undefined}
                     onClick={() => setStrategyMenuOpen((open) => !open)}
+                    onKeyDown={handleStrategyButtonKeyDown}
                     disabled={isAnalyzing}
                     className="home-surface-button flex h-10 max-w-[8.5rem] items-center gap-1.5 rounded-xl px-3 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:max-w-[11rem]"
                   >
@@ -484,43 +586,31 @@ const HomePage: React.FC = () => {
                   </button>
                   {strategyMenuOpen ? (
                     <div
+                      id="strategy-menu"
                       role="menu"
+                      aria-labelledby="strategy-menu-button"
+                      onKeyDown={handleStrategyMenuKeyDown}
                       className="absolute right-0 top-11 z-[120] max-h-80 w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-subtle bg-elevated p-1.5 text-sm text-foreground shadow-2xl"
                     >
-                      <button
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={!selectedStrategyId}
-                        onClick={() => {
-                          setSelectedStrategyId('');
-                          setStrategyMenuOpen(false);
-                        }}
-                        className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-hover"
-                      >
-                        <Check className={`mt-0.5 h-4 w-4 flex-shrink-0 ${selectedStrategyId ? 'opacity-0' : 'opacity-100'}`} aria-hidden="true" />
-                        <span className="min-w-0">
-                          <span className="block font-medium">默认策略</span>
-                          <span className="mt-0.5 block text-xs leading-5 text-muted-text">沿用系统默认分析框架</span>
-                        </span>
-                      </button>
-                      {analysisSkills.map((skill) => {
-                        const selected = selectedStrategyId === skill.id;
+                      {strategyOptions.map((option, index) => {
+                        const selected = selectedStrategyId === option.id;
                         return (
                           <button
-                            key={skill.id}
+                            key={option.id || 'default'}
+                            ref={(node) => {
+                              strategyItemRefs.current[index] = node;
+                            }}
                             type="button"
                             role="menuitemradio"
                             aria-checked={selected}
-                            onClick={() => {
-                              setSelectedStrategyId(skill.id);
-                              setStrategyMenuOpen(false);
-                            }}
+                            tabIndex={-1}
+                            onClick={() => selectStrategy(option.id)}
                             className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-hover"
                           >
                             <Check className={`mt-0.5 h-4 w-4 flex-shrink-0 ${selected ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
                             <span className="min-w-0">
-                              <span className="block font-medium">{skill.name}</span>
-                              <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-text">{skill.description}</span>
+                              <span className="block font-medium">{option.name}</span>
+                              <span className="mt-0.5 line-clamp-2 block text-xs leading-5 text-muted-text">{option.description}</span>
                             </span>
                           </button>
                         );
