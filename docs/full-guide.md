@@ -756,6 +756,15 @@ docker run -e SCHEDULE_ENABLED=true -e SCHEDULE_RUN_IMMEDIATELY=false ...
 
 > 兼容说明：如果运行时显式传入 `RUN_IMMEDIATELY`，但没有单独传 `SCHEDULE_RUN_IMMEDIATELY`，内置调度模式会继续继承前者，避免被 `.env` 中持久化的 `SCHEDULE_RUN_IMMEDIATELY` 旧值反向覆盖。
 
+> 兼容说明（Issue #1815）：`MARKET_REVIEW_REGION=cn|hk|us|jp|kr|both` 仅扩展大盘复盘输入集合；JP/KR 仅供复盘上下文消费，不会放开 Market Light 告警。
+> - `src/config.py`、`src/core/config_registry.py`、`src/services/system_config_service.py` 的改动仅是配置语义扩展，不改 `provider`/`model`/`base_url` 的运行时路由，也不触发 provider/model/base URL 迁移或清理逻辑。
+> - 兼容检测项：`tests/test_market_light_service.py`（Market Light 市场枚举范围）、`tests/test_market_light_alerts.py`（JP/KR 告警拒绝链路）、`tests/test_portfolio_service.py`（JP/KR 快照 `data_quality` 限制）、`tests/test_system_config_service.py`（provider/model/base_url 配置兼容与回退）、`tests/test_config_env_compat.py`（配置源回退语义）。
+> - 官方依据：LiteLLM OpenAI-compatible <https://docs.litellm.ai/docs/providers/openai_compatible> 与 OpenAI Chat API <https://platform.openai.com/docs/api-reference/chat>。
+> - PR 可视证据替代：Market Light 下拉与告警范围变化已被 `apps/dsa-web/src/components/alerts/__tests__/AlertRuleForm.test.tsx` 的断言锁定（`日股（jp）`、`韩股（kr）` 在 `market` 选项中不可见）；无法提供截图时，可在 PR 描述引用该测试输出、截图路径与命令：
+>   - `cd apps/dsa-web && npx vitest run src/components/alerts/__tests__/AlertRuleForm.test.tsx --reporter=html`
+>   - `cd apps/dsa-web && npm run test -- src/components/alerts/__tests__/AlertRuleForm.test.tsx src/components/settings/__tests__/SettingsField.test.tsx`
+> - 可回滚路径：恢复提交前 `.env` / 配置备份中的 `MARKET_REVIEW_REGION` 与相关运行时变量，或直接 revert 本 PR。
+
 #### 交易日判断（Issue #373）
 
 默认根据自选股市场（A 股 / 港股 / 美股）和 `MARKET_REVIEW_REGION` 判断是否为交易日：

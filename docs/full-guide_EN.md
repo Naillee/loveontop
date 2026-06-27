@@ -378,6 +378,15 @@ For the notification baseline, diagnostics, and deployment notes, see [Notificat
 > - The official quickstart documents `quotes.get(universes=["CN_Equity_A"])`, but online smoke tests confirmed two additional real-world constraints: universe access depends on plan permissions, and `quotes.get(symbols=[...])` has a per-request symbol limit.
 > - TickFlow currently returns `change_pct` / `amplitude` as ratio values; this integration normalizes them to the project's percent convention so they match AkShare / Tushare / efinance semantics.
 > - In scheduler mode, if runtime env explicitly sets `RUN_IMMEDIATELY` but does not set `SCHEDULE_RUN_IMMEDIATELY`, the scheduler keeps inheriting the legacy runtime override instead of being pulled back to a persisted `.env` alias value.
+
+> Compatibility note (Issue #1815): `MARKET_REVIEW_REGION=cn|hk|us|jp|kr|both` only expands the market set used by market review; `jp`/`kr` are for recap scope and do not open JP/KR for Market Light alerts.
+> - Changes in `src/config.py`, `src/core/config_registry.py`, and `src/services/system_config_service.py` are configuration-contract updates only, and do not alter runtime provider/model/base URL routing semantics or trigger provider migration/cleanup logic.
+> - Compatibility checks: `tests/test_market_light_service.py` (Market Light market scope), `tests/test_market_light_alerts.py` (JP/KR alert rejection path), `tests/test_portfolio_service.py` (JP/KR snapshot `data_quality` limits), `tests/test_system_config_service.py` (provider/model/base URL compatibility and fallback), and `tests/test_config_env_compat.py` (runtime config source precedence).
+> - Official references: LiteLLM OpenAI-compatible docs <https://docs.litellm.ai/docs/providers/openai_compatible> and OpenAI Chat API <https://platform.openai.com/docs/api-reference/chat>.
+> - Web visual evidence substitute: Market Light dropdown/market scope behavior is locked by `apps/dsa-web/src/components/alerts/__tests__/AlertRuleForm.test.tsx` assertions that JP/KR are absent from the market options; if screenshots cannot be attached, cite test output with these commands:
+>   - `cd apps/dsa-web && npx vitest run src/components/alerts/__tests__/AlertRuleForm.test.tsx --reporter=html`
+>   - `cd apps/dsa-web && npm run test -- src/components/alerts/__tests__/AlertRuleForm.test.tsx src/components/settings/__tests__/SettingsField.test.tsx`
+> - Rollback: restore pre-PR `.env`/config backup values and `MARKET_REVIEW_REGION` settings, or revert this PR.
 > - CN market review reports now use a post-market workstation layout with market signal, index detail, sector Top tables, news catalysts, next-session plan, and risk sections. The market signal uses a plain-text score such as `66/100 (constructive, risk-on)` instead of block bars so it renders consistently across terminals and notification clients. News catalysts list only headline, source, and link instead of search snippets to reduce mixed-language noise. Missing data sources degrade by omitting or simplifying only the affected block.
 > - Per-stock analysis, realtime quote priority, and sector rankings fallback remain unchanged.
 
