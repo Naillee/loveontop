@@ -599,9 +599,14 @@ def _markdown_contains_sector_markers(text: str) -> bool:
     markers = (
         "#### 领涨板块",
         "#### 领跌板块",
+        "#### 行业板块领涨",
+        "#### 行业板块领跌",
         "#### Leading Sectors",
         "#### Lagging Sectors",
+        "#### Leading Industry Sectors",
+        "#### Lagging Industry Sectors",
         "| 排名 | 板块 |",
+        "| 排名 | 行业板块 |",
         "| Rank | Sector |",
     )
     return any(marker in text for marker in markers)
