@@ -1,6 +1,6 @@
-# English Documentation Index
+# loveonTOP Documentation Index
 
-This is the entry point for project documentation. The README covers the project overview and quick start; detailed setup, configuration, deployment, feature usage, and troubleshooting docs are linked below.
+This is the entry point for loveonTOP project documentation. The README covers the loveonTOP project overview and quick start; detailed setup, configuration, deployment, feature usage, and troubleshooting docs are linked below.
 
 > For Chinese documentation, see [docs/INDEX.md](INDEX.md).
 
